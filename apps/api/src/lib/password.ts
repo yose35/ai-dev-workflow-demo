@@ -1,20 +1,21 @@
 // CLAUDE.md 鐵則 #5 + Spec 第 10 節：argon2id, memoryCost 64MB / timeCost 3 / parallelism 4
-import * as argon2 from 'argon2';
+// 採用 @node-rs/argon2（Rust 實作，預編譯 binary，避免 node-gyp build 問題）
+import { hash as a2hash, verify as a2verify, Algorithm } from '@node-rs/argon2';
 
-const argonOpts: argon2.Options = {
-  type: argon2.argon2id,
+const argonOpts = {
+  algorithm: Algorithm.Argon2id,
   memoryCost: 1 << 16, // 64 MB
   timeCost: 3,
   parallelism: 4,
 };
 
 export async function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, argonOpts);
+  return a2hash(plain, argonOpts);
 }
 
 export async function verifyPassword(hash: string, plain: string): Promise<boolean> {
   try {
-    return await argon2.verify(hash, plain);
+    return await a2verify(hash, plain);
   } catch {
     return false;
   }
