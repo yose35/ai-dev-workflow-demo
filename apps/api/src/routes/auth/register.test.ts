@@ -1,26 +1,12 @@
 // Spec: AC-R1 .. AC-R4 — 測試名稱直接帶 AC 編號（CLAUDE.md 慣例）
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import Fastify from 'fastify';
-import { registerRoute } from './register.js';
+import { prismaMock, stores, resetStores } from './__mocks__/prisma.js';
 
-// In-memory prisma mock — 整合測試另開檔
-vi.mock('@pkg/db', () => {
-  const users = new Map<string, { id: string; email: string; createdAt: Date }>();
-  return {
-    prisma: {
-      user: {
-        findUnique: vi.fn(({ where }) => Promise.resolve(users.get(where.email) ?? null)),
-        create: vi.fn(({ data, select }) => {
-          if (users.has(data.email)) throw new Error('UNIQUE_VIOLATION');
-          const rec = { id: `user_${users.size + 1}`, email: data.email, createdAt: new Date() };
-          users.set(data.email, rec);
-          return Promise.resolve(select ? rec : { ...rec, passwordHash: data.passwordHash });
-        }),
-      },
-      _users: users,
-    } as any,
-  };
-});
+vi.mock('@pkg/db', () => ({ prisma: prismaMock }));
+
+const { registerRoute } = await import('./register.js');
+const { registerErrorHandler } = await import('../../plugins/errorHandler.js');
 
 const FAKE_ENV = {
   NODE_ENV: 'test' as const,
@@ -33,16 +19,15 @@ const FAKE_ENV = {
 
 async function makeApp() {
   const app = Fastify();
+  registerErrorHandler(app);
   registerRoute(app, FAKE_ENV as any);
   await app.ready();
   return app;
 }
 
 describe('POST /auth/register', () => {
-  beforeEach(async () => {
-    const mod = await import('@pkg/db');
-    (mod.prisma as any)._users.clear();
-  });
+  beforeEach(() => resetStores());
+  void stores; // silence unused import
 
   it('AC-R1: 註冊成功 → 201 + access_token + user', async () => {
     const app = await makeApp();

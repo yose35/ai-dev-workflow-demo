@@ -3,7 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@pkg/db';
-import { errors, AppError } from '../../lib/errors.js';
+import { errors } from '../../lib/errors.js';
 import { hashPassword, validatePassword } from '../../lib/password.js';
 import { signAccessToken } from '../../lib/jwt.js';
 import type { Env } from '../../config/env.js';
@@ -67,17 +67,5 @@ export function registerRoute(app: FastifyInstance, env: Env) {
     });
   });
 
-  // 統一錯誤回傳
-  app.setErrorHandler((err, _req, reply) => {
-    if (err instanceof AppError) {
-      return reply.code(err.statusCode).send(err.toJSON());
-    }
-    req_log_unknown(err);
-    return reply.code(500).send({ ok: false, error: { code: 'INTERNAL', message: 'Server error' } });
-  });
-}
-
-function req_log_unknown(err: unknown) {
-  // 真實環境換成 Sentry / structured logger
-  console.error('[unhandled]', err);
+  // error handler 已抽到 plugins/errorHandler.ts，由 server.ts 統一註冊
 }
