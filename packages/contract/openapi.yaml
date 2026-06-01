@@ -1,0 +1,380 @@
+openapi: 3.1.0
+info:
+  title: Auth & Payment API
+  description: |
+    會員登入 + 付款方式綁定。BE 與 FE 共用此契約。
+    任何端點變動必須先改此檔，再開發。
+  version: 0.1.0
+  contact:
+    name: AI Dev Workflow Demo
+
+servers:
+  - url: https://api.dev.example.com
+    description: Development
+  - url: https://api.staging.example.com
+    description: Staging
+
+tags:
+  - name: Auth
+    description: 註冊、登入、refresh、logout
+  - name: 2FA
+    description: 兩階段驗證
+  - name: User
+    description: 使用者本人資訊
+  - name: Payments
+    description: Stripe 卡片綁定
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Email 註冊
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 註冊成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email 已被註冊
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                ok: false
+                error: { code: USER_EXISTS, message: "Email already registered" }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Email 密碼登入
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登入成功（若啟用 2FA 會回 202 並需呼叫 /auth/2fa/verify）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccess'
+          headers:
+            Set-Cookie:
+              description: refresh_token (httpOnly, Secure, SameSite=Strict, 30 days)
+              schema: { type: string }
+        '202':
+          description: 已驗證主要憑證，等待 2FA code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: false }
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, const: TWO_FA_REQUIRED }
+                      challenge_id: { type: string, format: uuid }
+        '401':
+          description: 帳密錯誤
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                ok: false
+                error: { code: INVALID_CREDENTIALS, message: "" }
+        '429':
+          description: 暴力登入鎖定（15 分鐘）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Google OAuth 登入
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token, state]
+              properties:
+                id_token: { type: string, description: "Google ID token from One Tap" }
+                state:    { type: string, description: "CSRF state token issued by FE" }
+      responses:
+        '200':
+          description: 登入成功（新使用者自動建立）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401':
+          description: state mismatch 或 id_token 無效
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 用 refresh cookie 換新 access token
+      security: []
+      parameters:
+        - in: cookie
+          name: refresh_token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 新的 access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      access_token: { type: string }
+                      expires_in:   { type: integer, description: "seconds" }
+        '401':
+          description: refresh 無效或被撤銷
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: 撤銷 refresh token
+      responses:
+        '204':
+          description: 已登出
+
+  /auth/2fa/enroll:
+    post:
+      tags: [2FA]
+      summary: 啟用 2FA，回 TOTP secret 與 QR
+      responses:
+        '200':
+          description: enrollment payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      secret:  { type: string, description: "base32 TOTP secret" }
+                      qr_data: { type: string, description: "data:image/png;base64,..." }
+
+  /auth/2fa/verify:
+    post:
+      tags: [2FA]
+      summary: 驗證 TOTP code（首次啟用或登入時帶 challenge_id）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:         { type: string, pattern: '^[0-9]{6}$' }
+                challenge_id: { type: string, format: uuid, description: "登入流程才需要" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSuccess' }
+        '401':
+          description: code 錯誤
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /me:
+    get:
+      tags: [User]
+      summary: 取得本人資訊
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data: { $ref: '#/components/schemas/User' }
+
+  /payments/setup-intent:
+    post:
+      tags: [Payments]
+      summary: 建立 Stripe SetupIntent 用以綁卡
+      responses:
+        '200':
+          description: client_secret 回給 FE 用 Stripe Elements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      client_secret: { type: string }
+
+  /payments/webhooks/stripe:
+    post:
+      tags: [Payments]
+      summary: Stripe webhook receiver
+      description: |
+        以 `event.id` 作 idempotency key。
+        必須驗證 `Stripe-Signature` header。
+      security: []
+      parameters:
+        - in: header
+          name: Stripe-Signature
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe Event payload
+      responses:
+        '200': { description: Accepted }
+        '400': { description: Signature 驗證失敗 }
+
+  /payments/methods:
+    get:
+      tags: [Payments]
+      summary: 列出本人綁定卡片
+      responses:
+        '200':
+          description: methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PaymentMethod' }
+
+  /payments/methods/{id}:
+    delete:
+      tags: [Payments]
+      summary: 解除綁定一張卡
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted }
+        '404':
+          description: 此 method 不存在或不屬於該使用者
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: 輸入驗證失敗
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string, minLength: 10, description: "至少 10 字，含英數" }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string }
+
+    AuthSuccess:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            access_token: { type: string }
+            expires_in:   { type: integer }
+            user:         { $ref: '#/components/schemas/User' }
+
+    User:
+      type: object
+      properties:
+        id:                  { type: string, format: uuid }
+        email:               { type: string, format: email }
+        two_fa_enabled:      { type: boolean }
+        has_payment_method:  { type: boolean }
+        created_at:          { type: string, format: date-time }
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        brand:      { type: string, example: visa }
+        last4:      { type: string, example: "4242" }
+        exp_month:  { type: integer, example: 12 }
+        exp_year:   { type: integer, example: 2029 }
+        is_default: { type: boolean }
+
+    Error:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:    { type: string, example: WEAK_PASSWORD }
+            message: { type: string }

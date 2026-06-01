@@ -1,0 +1,60 @@
+// 對應 ADR: docs/adr/2026-06-01-auth-schema.md
+// 對應 Spec: specs/login-and-payment.md 第 6 節
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  passwordHash    String?  @map("password_hash")
+  totpSecret      String?  @map("totp_secret")
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+  oauthProvider   String?  @map("oauth_provider")
+  oauthSub        String?  @map("oauth_sub")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  refreshTokens   RefreshToken[]
+  paymentMethods  PaymentMethod[]
+
+  @@index([oauthProvider, oauthSub], name: "idx_users_oauth")
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_refresh_user")
+  @@map("refresh_tokens")
+}
+
+model PaymentMethod {
+  id                      String   @id @default(uuid()) @db.Uuid
+  userId                  String   @map("user_id") @db.Uuid
+  stripePaymentMethodId   String   @unique @map("stripe_payment_method_id")
+  brand                   String?
+  last4                   String?
+  expMonth                Int?     @map("exp_month")
+  expYear                 Int?     @map("exp_year")
+  isDefault               Boolean  @default(false) @map("is_default")
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_pm_user")
+  @@map("payment_methods")
+}

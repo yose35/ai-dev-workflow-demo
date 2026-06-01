@@ -1,0 +1,22 @@
+{
+  "name": "@pkg/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "test": "echo 'no tests'"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.16.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.0"
+  }
+}
