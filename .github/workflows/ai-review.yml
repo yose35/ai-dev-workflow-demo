@@ -1,0 +1,65 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-review:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ai-review') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read project context
+        id: context
+        run: |
+          # 把脈絡檔讀進 env，AI Reviewer 才有上下文
+          {
+            echo 'CLAUDE_MD<<EOF'
+            cat CLAUDE.md
+            echo EOF
+            echo 'PLAN_MD<<EOF'
+            cat PLAN.md
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Claude AI Review
+        uses: anthropics/claude-code-action@v1   # 視實際版本調整
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          mode: review
+          focus: |
+            - 對照 CLAUDE.md 的開發鐵則與慣例檢查
+            - 對照本 PR 連結的 Spec / ADR 檢查需求覆蓋
+            - 資安：注入、權限繞過、敏感資料洩漏
+            - 效能：N+1、未 index 的查詢、迴圈內 await
+            - 邊界情境：空值、極大輸入、並發
+            - 不要重複討論 lint / 格式（已由 CI 處理）
+          context: |
+            ${{ steps.context.outputs.CLAUDE_MD }}
+            ---
+            ${{ steps.context.outputs.PLAN_MD }}
+          post_summary: true   # 在 PR 底部留一段給 reviewer 的整體摘要
+
+      - name: Block merge if critical issues
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '⚠️ AI Reviewer 偵測到 critical 等級問題，請處理後再 merge。'
+            })

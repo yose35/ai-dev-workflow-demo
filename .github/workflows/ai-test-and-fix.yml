@@ -1,0 +1,77 @@
+name: AI Test & Auto-Fix
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run-test.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint & typecheck
+        run: pnpm run check
+
+      - name: Test
+        id: run-test
+        run: pnpm test --reporter=json --outputFile=test-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: test-report.json
+
+  auto-fix:
+    needs: test
+    if: ${{ needs.test.outputs.result == 'failure' && !contains(github.event.pull_request.labels.*.name, 'skip-auto-fix') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Download report
+        uses: actions/download-artifact@v4
+        with: { name: test-report }
+
+      - name: AI Auto-Fix
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          mode: fix
+          input_files: test-report.json
+          instructions: |
+            CI 失敗，請：
+            1. 讀取 test-report.json 找出失敗測試
+            2. 對照原始碼定位問題
+            3. 提出最小修正
+            4. 同一個 commit 修完
+            5. 在 commit message 寫清楚每個 fix 對應哪個失敗 case
+            如果不確定，不要硬修，請改在 PR 留 comment 並標 @code-owner
+
+      - name: Commit & push
+        run: |
+          git config user.name "ai-bot"
+          git config user.email "ai-bot@users.noreply.github.com"
+          if [[ -n $(git status -s) ]]; then
+            git add -A
+            git commit -m "fix(ai): auto-fix failing tests"
+            git push
+          fi
