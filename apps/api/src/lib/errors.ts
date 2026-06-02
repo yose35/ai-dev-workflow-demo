@@ -32,4 +32,8 @@ export const errors = {
   invalidEmail: () => new AppError('INVALID_EMAIL', 400, 'Email format invalid'),
   invalidCredentials: () => new AppError('INVALID_CREDENTIALS', 401, ''),
   rateLimited: () => new AppError('RATE_LIMITED', 429, 'Too many attempts, retry later'),
+  twoFaRequired: () => new AppError('TWO_FA_REQUIRED', 202, ''),
+  invalid2faCode: () => new AppError('INVALID_2FA_CODE', 401, ''),
+  oauthStateInvalid: (msg = 'Invalid OAuth state') => new AppError('OAUTH_STATE_INVALID', 401, msg),
+  notFound: (what: string) => new AppError('NOT_FOUND', 404, `${what} not found`),
 };

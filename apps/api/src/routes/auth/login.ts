@@ -8,6 +8,7 @@ import { verifyPassword } from '../../lib/password.js';
 import { signAccessToken } from '../../lib/jwt.js';
 import { issueRefreshToken } from '../../lib/refreshToken.js';
 import { checkLoginAttempt, resetLoginAttempts } from '../../lib/rateLimit.js';
+import { issueChallenge } from '../../lib/twoFaChallenge.js';
 import type { Env } from '../../config/env.js';
 
 const Body = z.object({
@@ -45,12 +46,12 @@ export function loginRoute(app: FastifyInstance, env: Env) {
 
     resetLoginAttempts(rlKey);
 
-    // 若啟用 2FA → 回 202 等 verify（後續 PR #4 實作 verify）
+    // AC-2FA-2: 若啟用 2FA → 回 202 + 簽 challenge_id（HMAC，5min TTL）
     if (user.totpSecret) {
-      // 之後可在這裡產生 challenge_id 並回傳
+      const challenge_id = issueChallenge(user.id, env.JWT_SECRET);
       return reply.code(202).send({
         ok: false,
-        error: { code: 'TWO_FA_REQUIRED', message: '', challenge_id: user.id },
+        error: { code: 'TWO_FA_REQUIRED', message: '', challenge_id },
       });
     }
 
