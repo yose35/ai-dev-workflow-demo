@@ -1,6 +1,7 @@
 // 共用 prisma mock — 供 auth / payments 測試使用
 // in-memory store，每個 test 開始時 clear
 import { vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 
 export interface UserRecord {
   id: string;
@@ -39,7 +40,11 @@ export const stores = {
 };
 
 let idCounter = 0;
-const nextId = () => `id_${++idCounter}`;
+// 同時提供「監控用計數」與「真實 UUID」 — 反映 production 行為（gen_random_uuid）
+const nextId = () => {
+  idCounter++;
+  return randomUUID();
+};
 
 function matchUser(u: UserRecord, where: any): boolean {
   if (where.id && u.id !== where.id) return false;

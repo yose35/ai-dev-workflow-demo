@@ -80,9 +80,8 @@ describe('POST /auth/refresh', () => {
     const res = await app.inject({ method: 'POST', url: '/auth/refresh', cookies: { refresh_token: tokenA } });
     expect(res.statusCode).toBe(401);
 
-    // tokenB 也應該被撤銷
-    const tokenBRec = stores.refreshTokens.find((r) => r.id === 'id_2');
-    expect(tokenBRec?.revokedAt).not.toBeNull();
+    // tokenB 也應該被撤銷（reuse detection 撤銷該 user 所有 active sessions）
+    expect(stores.refreshTokens.every((r) => r.revokedAt !== null)).toBe(true);
     void tokenB; // silence unused
   });
 });
