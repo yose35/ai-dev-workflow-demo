@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthLayout } from "@/components/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { LoginSchema, type LoginInput } from "@/lib/validators";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-store";
@@ -88,6 +89,14 @@ export default function LoginPage() {
           登入
         </Button>
       </form>
+
+      <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex-1 h-px bg-slate-200" />
+        或
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+
+      <GoogleSignInButton />
     </AuthLayout>
   );
 }

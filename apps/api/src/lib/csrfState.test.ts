@@ -4,7 +4,9 @@ import { issueState, verifyState } from './csrfState.js';
 const SECRET = 'x'.repeat(32);
 
 describe('csrfState', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('剛簽出的 state 立即驗證為 valid', () => {
     const s = issueState(SECRET);

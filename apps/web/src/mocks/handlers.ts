@@ -8,16 +8,63 @@ import type {
   ApiErrorBody,
 } from "@/lib/api-types";
 
-// ── in-memory store ───────────────────────────────────────────
-const users = new Map<string, User & { password: string; totpSecret?: string }>();
-const methods = new Map<string, PaymentMethod>();
+// ── persistent store（localStorage 在瀏覽器、in-memory 在 node test）─────
+// 跨 page reload 維持狀態：避免「註冊完跳登入就帳密錯誤」這類雜訊
+type UserRec = User & { password: string; totpSecret?: string };
+const USERS_KEY = "msw_users_v1";
+const METHODS_KEY = "msw_methods_v1";
+
+function isBrowser(): boolean {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
+
+function loadMap<V>(key: string): Map<string, V> {
+  if (!isBrowser()) return new Map();
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? new Map(JSON.parse(raw)) : new Map();
+  } catch {
+    return new Map();
+  }
+}
+
+function saveMap<V>(key: string, map: Map<string, V>): void {
+  if (!isBrowser()) return;
+  try {
+    localStorage.setItem(key, JSON.stringify([...map.entries()]));
+  } catch {
+    // localStorage 滿了 / 隱私模式 → 忽略
+  }
+}
+
+const users: Map<string, UserRec> = loadMap<UserRec>(USERS_KEY);
+const methods: Map<string, PaymentMethod> = loadMap<PaymentMethod>(METHODS_KEY);
+
+const persistUsers = () => saveMap(USERS_KEY, users);
+const persistMethods = () => saveMap(METHODS_KEY, methods);
+
+// 給 demo 用：清掉所有 mock 狀態（暴露在 window，devtools 可呼叫）
+if (isBrowser()) {
+  (window as unknown as { __mswReset?: () => void }).__mswReset = () => {
+    users.clear();
+    methods.clear();
+    localStorage.removeItem(USERS_KEY);
+    localStorage.removeItem(METHODS_KEY);
+    console.log("[msw] state cleared. reload page to re-seed.");
+  };
+}
 
 const ok = <T,>(data: T) => HttpResponse.json({ ok: true, data });
 const fail = (code: ApiErrorBody["error"]["code"], status: number, message = ""): Response =>
   HttpResponse.json({ ok: false, error: { code, message } } satisfies ApiErrorBody, { status });
 
-const fakeJwt = (sub: string) =>
-  "eyJ" + Buffer.from(JSON.stringify({ sub, mock: true })).toString("base64url") + ".mock.sig";
+// 用 btoa（瀏覽器 & Node 都有），不用 Buffer（Node-only）
+const fakeJwt = (sub: string) => {
+  const b64 = btoa(JSON.stringify({ sub, mock: true }));
+  // base64 → base64url
+  const b64url = b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return "eyJ" + b64url + ".mock.sig";
+};
 
 const minUser = (u: User & { password: string }): User => ({
   id: u.id,
@@ -47,6 +94,7 @@ export const handlers = [
       password: body.password,
     };
     users.set(body.email, u);
+    persistUsers();
     return HttpResponse.json<AuthSuccess>(
       { ok: true, data: { access_token: fakeJwt(u.id), expires_in: 900, user: minUser(u) } },
       { status: 201 }
@@ -88,6 +136,7 @@ export const handlers = [
         password: "",
       };
       users.set(email, u);
+      persistUsers();
     }
     return HttpResponse.json<AuthSuccess>({
       ok: true,
@@ -139,18 +188,41 @@ export const handlers = [
 
   // Payments
   http.post("/payments/setup-intent", () => ok({ client_secret: "seti_mock_secret_xxx" })),
+  // Demo only：在真實環境這個由 Stripe 自己送 webhook 觸發。
+  // 為了讓 FE 在 msw mock 下也能跑通完整綁卡流程，提供一個 mock-only 的「seed 卡片」入口。
+  http.post("/payments/_demo/seed-card", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      brand?: string;
+      last4?: string;
+      exp_month?: number;
+      exp_year?: number;
+    };
+    const card = {
+      id: crypto.randomUUID(),
+      brand: body.brand ?? "visa",
+      last4: body.last4 ?? "4242",
+      exp_month: body.exp_month ?? 12,
+      exp_year: body.exp_year ?? 2029,
+      is_default: methods.size === 0,
+    };
+    methods.set(card.id, card);
+    persistMethods();
+    return ok(card);
+  }),
   http.post("/payments/webhooks/stripe", () => ok({ received: true })),
   http.get("/payments/methods", () => ok(Array.from(methods.values()))),
   http.delete("/payments/methods/:id", ({ params }) => {
     const id = params.id as string;
     if (!methods.has(id)) return fail("NOT_FOUND", 404);
     methods.delete(id);
+    persistMethods();
     return new HttpResponse(null, { status: 204 });
   }),
 ];
 
-// 給 test / dev demo 用：seed 一張示範卡片
+// 給 test / dev demo 用：seed 一張示範卡片（僅在 store 還是空的時候 seed）
 export function seedDemoData() {
+  if (methods.size > 0) return; // 已有資料就不再 seed
   const pmId = crypto.randomUUID();
   methods.set(pmId, {
     id: pmId,
@@ -160,4 +232,5 @@ export function seedDemoData() {
     exp_year: 2029,
     is_default: true,
   });
+  persistMethods();
 }

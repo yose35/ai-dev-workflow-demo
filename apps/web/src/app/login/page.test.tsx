@@ -21,7 +21,9 @@ function setup() {
 }
 
 describe("<LoginPage />", () => {
-  beforeEach(() => setup());
+  beforeEach(() => {
+    setup();
+  });
 
   it("AC-L1 happy path：正確帳密 → router.push('/')", async () => {
     // mock 中需要先 register 才有人

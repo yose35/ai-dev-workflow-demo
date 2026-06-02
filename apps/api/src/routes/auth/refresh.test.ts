@@ -36,6 +36,8 @@ function seedUser() {
     passwordHash: 'fakehash',
     totpSecret: null,
     stripeCustomerId: null,
+    oauthProvider: null,
+    oauthSub: null,
     createdAt: new Date(),
   });
   return userId;

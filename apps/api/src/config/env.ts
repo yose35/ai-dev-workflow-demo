@@ -12,6 +12,9 @@ const EnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional(),
+  CORS_ORIGIN: z.string().optional().default("http://localhost:3001"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

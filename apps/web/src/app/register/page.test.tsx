@@ -19,7 +19,9 @@ function setup() {
 }
 
 describe("<RegisterPage />", () => {
-  beforeEach(() => setup());
+  beforeEach(() => {
+    setup();
+  });
 
   it("AC-R1 happy：合格資料 → 201 後 router.push('/')", async () => {
     const u = userEvent.setup();

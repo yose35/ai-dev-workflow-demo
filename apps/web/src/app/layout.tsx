@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { MswProvider } from "@/components/MswProvider";
 import { AuthProvider } from "@/lib/auth-store";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "AI Dev Workflow Demo",
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-Hant">
       <body>
         <MswProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </MswProvider>
       </body>
     </html>

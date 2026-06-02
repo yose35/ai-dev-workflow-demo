@@ -36,6 +36,8 @@ async function seedUser(email = 'alice@example.com', password = 'Password123') {
     passwordHash: await hashPassword(password),
     totpSecret: null,
     stripeCustomerId: null,
+    oauthProvider: null,
+    oauthSub: null,
     createdAt: new Date(),
   });
 }

@@ -4,7 +4,9 @@ import { issueChallenge, verifyChallenge } from './twoFaChallenge.js';
 const SECRET = 'x'.repeat(32);
 
 describe('twoFaChallenge', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('剛簽出立即驗證 → ok + userId', () => {
     const t = issueChallenge('user_abc', SECRET);

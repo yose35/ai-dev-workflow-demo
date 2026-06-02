@@ -15,7 +15,9 @@ function setup() {
 }
 
 describe("<TwoFaEnrollPage />", () => {
-  beforeEach(() => setup());
+  beforeEach(() => {
+    setup();
+  });
 
   it("AC-2FA-1：點啟用 → 顯示 QR + secret", async () => {
     const u = userEvent.setup();

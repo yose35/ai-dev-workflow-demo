@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { AddCardDialog } from "@/components/AddCardDialog";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { useApiReady } from "@/components/MswProvider";
 import type { PaymentMethod, ListMethodsResponse } from "@/lib/api-types";
@@ -12,6 +13,7 @@ export default function PaymentMethodsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -50,9 +52,7 @@ export default function PaymentMethodsPage() {
           <h1 className="text-3xl font-extrabold text-primary-900">付款方式</h1>
           <p className="mt-2 text-sm text-slate-600">管理已綁定的信用卡。卡號全程由 Stripe 保管。</p>
         </div>
-        <Button onClick={() => alert("Demo：實際會開啟 Stripe Elements 收卡片")}>
-          + 新增卡片
-        </Button>
+        <Button onClick={() => setAddOpen(true)}>+ 新增卡片</Button>
       </header>
 
       {err && (
@@ -101,6 +101,8 @@ export default function PaymentMethodsPage() {
           </li>
         ))}
       </ul>
+
+      <AddCardDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
 
       {pendingDelete && (
         <div
