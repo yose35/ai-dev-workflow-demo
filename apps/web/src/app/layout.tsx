@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { MswProvider } from "@/components/MswProvider";
+import { AuthProvider } from "@/lib/auth-store";
 
 export const metadata: Metadata = {
   title: "AI Dev Workflow Demo",
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant">
       <body>
-        <MswProvider>{children}</MswProvider>
+        <MswProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </MswProvider>
       </body>
     </html>
   );
