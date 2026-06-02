@@ -6,14 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
     outputs:
-      result: ${{ steps.run-test.outcome }}
       has_project: ${{ steps.detect.outputs.has_project }}
     steps:
       - uses: actions/checkout@v4
@@ -24,9 +23,6 @@ jobs:
           if [ -f package.json ]; then
             echo "has_project=node" >> "$GITHUB_OUTPUT"
             echo "✅ Node project detected"
-          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
-            echo "has_project=python" >> "$GITHUB_OUTPUT"
-            echo "✅ Python project detected"
           else
             echo "has_project=none" >> "$GITHUB_OUTPUT"
             echo "ℹ️  Bootstrap stage — no project files yet. Skipping tests."
@@ -35,7 +31,6 @@ jobs:
       - name: Setup pnpm
         if: steps.detect.outputs.has_project == 'node'
         uses: pnpm/action-setup@v4
-        with: { version: 9 }
 
       - name: Setup Node
         if: steps.detect.outputs.has_project == 'node'
@@ -44,71 +39,78 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Install (Node)
+      - name: Install
         if: steps.detect.outputs.has_project == 'node'
         run: pnpm install --no-frozen-lockfile
 
-      - name: Lint & typecheck (Node, optional)
-        if: steps.detect.outputs.has_project == 'node'
-        run: pnpm run check --if-present || true
-
       - name: Run tests
-        id: run-test
         if: steps.detect.outputs.has_project == 'node'
-        run: pnpm test --reporter=json --outputFile=test-report.json
-        continue-on-error: true
-
-      - name: Upload test report
-        if: steps.detect.outputs.has_project == 'node' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: test-report.json
-          if-no-files-found: ignore
+        run: pnpm test
 
       - name: Bootstrap stage notice
         if: steps.detect.outputs.has_project == 'none'
         run: |
-          echo "## 📦 Bootstrap stage" >> $GITHUB_STEP_SUMMARY
-          echo "尚未偵測到 package.json 或 pyproject.toml，跳過測試。" >> $GITHUB_STEP_SUMMARY
-          echo "等 BE / FE 開始實作後，此 workflow 會自動啟動。" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Bootstrap stage" >> "$GITHUB_STEP_SUMMARY"
+          echo "尚未偵測到 package.json，跳過測試。" >> "$GITHUB_STEP_SUMMARY"
 
-  auto-fix:
+  ai-diagnose-on-fail:
     needs: test
-    if: ${{ needs.test.outputs.result == 'failure' && needs.test.outputs.has_project != 'none' && !contains(github.event.pull_request.labels.*.name, 'skip-auto-fix') }}
+    # 只在 test job 失敗時跑：給 AI 看 commit 並提示可能的修正方向
+    if: ${{ failure() && needs.test.outputs.has_project == 'node' && !contains(github.event.pull_request.labels.*.name, 'skip-auto-fix') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Download test report
-        uses: actions/download-artifact@v4
-        with:
-          name: test-report
+      - name: Gather context
+        id: ctx
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch origin "$BASE_SHA" --depth=1 || true
+          DIFF=$(git diff "$BASE_SHA" "$HEAD_SHA" | head -c 60000)
+          {
+            echo 'DIFF<<EOF'
+            echo "$DIFF"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Call Anthropic API for fix suggestion
+      - name: Ask Claude for diagnosis
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIFF: ${{ steps.ctx.outputs.DIFF }}
         run: |
-          REPORT=$(head -c 30000 test-report.json)
-          BODY=$(jq -n --arg report "$REPORT" '{
+          BODY=$(jq -n --arg diff "$DIFF" '{
             model: "claude-sonnet-4-5",
             max_tokens: 1024,
             messages: [{
               role: "user",
-              content: ("以下是失敗的測試報告，請分析並指出最可能的修正方向（不寫程式碼，只給診斷）：\n\n" + $report)
+              content: ("以下 PR 的 CI test job 失敗了。請根據 diff 推測最可能的失敗原因並建議修法（不寫程式碼，給 3 個最可能的方向）。用繁體中文簡潔。\n\nDiff:\n```\n" + $diff + "\n```")
             }]
           }')
-
-          ANALYSIS=$(curl -s https://api.anthropic.com/v1/messages \
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
-            -d "$BODY" | jq -r '.content[0].text')
-
+            -d "$BODY")
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.content[0].text')
           {
-            echo "## 🛠️ AI 測試診斷"
+            echo "## 🛠️ AI 測試失敗診斷"
+            echo ""
             echo "$ANALYSIS"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `⚠️ Test job failed. [AI 已產出診斷摘要](${url})（看 Summary 區塊）`
+            });
