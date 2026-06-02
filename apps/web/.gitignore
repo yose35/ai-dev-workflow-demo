@@ -8,3 +8,6 @@ dist/
 .DS_Store
 coverage/
 public/mockServiceWorker.js
+test-results/
+playwright-report/
+playwright/.cache/

@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3001",
+    "start": "next start --port 3001",
     "build": "next build",
-    "start": "next start",
     "lint": "next lint",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:record": "PWDEBUG=0 playwright test --reporter=line",
     "contract:gen": "openapi-typescript ../../packages/contract/openapi.yaml -o src/lib/api-types.gen.ts"
   },
   "dependencies": {
@@ -40,6 +43,7 @@
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
     "@testing-library/jest-dom": "^6.4.0",
+    "@playwright/test": "^1.46.0",
     "jsdom": "^24.0.0"
   }
 }
