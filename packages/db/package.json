@@ -6,11 +6,15 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "postinstall": "prisma generate || true",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
     "test": "echo 'no tests'"
   },
@@ -18,6 +22,7 @@
     "@prisma/client": "^5.16.0"
   },
   "devDependencies": {
-    "prisma": "^5.16.0"
+    "prisma": "^5.16.0",
+    "tsx": "^4.16.0"
   }
 }

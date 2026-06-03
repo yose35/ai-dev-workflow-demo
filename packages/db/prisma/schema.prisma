@@ -42,6 +42,25 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// 對應 Spec: specs/dashboard-kpi.md 第 6 節 — 每日 × 品牌 KPI 彙總（事實表，非原始日誌）
+// 金額一律以「分(cent)」存 bigint，避免浮點誤差；Margin / ATPPU 為衍生值不落地
+model DailyBrandMetric {
+  id          String   @id @default(uuid()) @db.Uuid
+  date        DateTime @db.Date
+  brand       String // 'choice' | 'eeze' | 'lucky'（白名單於 API 端約束）
+  wager       BigInt
+  validWager  BigInt   @map("valid_wager")
+  ggr         BigInt // 可為負
+  payout      BigInt // wager - ggr，存起來方便驗算
+  playerCount Int      @map("player_count")
+  betCount    Int      @map("bet_count")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([date, brand], name: "uq_metric_date_brand")
+  @@index([brand, date], name: "idx_metric_brand_date")
+  @@map("daily_brand_metrics")
+}
+
 model PaymentMethod {
   id                      String   @id @default(uuid()) @db.Uuid
   userId                  String   @map("user_id") @db.Uuid

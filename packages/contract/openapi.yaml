@@ -23,6 +23,8 @@ tags:
     description: 使用者本人資訊
   - name: Payments
     description: Stripe 卡片綁定
+  - name: Metrics
+    description: 營運 KPI 儀表板數據（specs/dashboard-kpi.md）
 
 security:
   - bearerAuth: []
@@ -308,6 +310,57 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /metrics/kpi:
+    get:
+      tags: [Metrics]
+      summary: KPI 卡片數據（本期值、比較期值、變化率、sparkline）
+      description: specs/dashboard-kpi.md §7.1。金額以「元」回傳。
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date }, description: 本期起日 (YYYY-MM-DD, UTC) }
+        - { in: query, name: to, required: true, schema: { type: string, format: date }, description: 本期迄日（含） }
+        - { in: query, name: compareFrom, schema: { type: string, format: date }, description: 比較期起日（省略則自動 WoW） }
+        - { in: query, name: compareTo, schema: { type: string, format: date }, description: 比較期迄日 }
+        - { in: query, name: brands, schema: { type: string, example: "choice,lucky" }, description: 逗號分隔；省略=全部 }
+        - { in: query, name: granularity, schema: { type: string, enum: [day, week, month], default: day } }
+      responses:
+        '200':
+          description: KPI 數據
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KpiResponse' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: 未授權
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /metrics/timeseries:
+    get:
+      tags: [Metrics]
+      summary: 折線圖時間序列
+      description: specs/dashboard-kpi.md §7.2。回逐桶的指標值。
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date } }
+        - { in: query, name: brands, schema: { type: string, example: "choice,lucky" } }
+        - { in: query, name: granularity, schema: { type: string, enum: [day, week, month], default: day } }
+        - { in: query, name: metrics, schema: { type: string, example: "wager,validWager,ggr,margin" }, description: 逗號分隔；省略=全部 }
+      responses:
+        '200':
+          description: 時間序列
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeseriesResponse' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: 未授權
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -378,3 +431,69 @@ components:
           properties:
             code:    { type: string, example: WEAK_PASSWORD }
             message: { type: string }
+
+    DateRange:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to:   { type: string, format: date }
+
+    KpiCell:
+      type: object
+      description: 單一 KPI 的本期值、比較期值、變化率與 sparkline
+      properties:
+        value:     { type: number, description: 本期值（金額為元，margin 為百分比） }
+        compare:   { type: number, description: 比較期值 }
+        changePct:
+          type: number
+          nullable: true
+          description: 變化率（%）；比較期為 0 時為 null
+        spark:
+          type: array
+          items: { type: number }
+          description: 本期逐桶走勢
+
+    KpiResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            source:      { type: string, example: seed, description: 資料來源標示（demo 為 seed 假資料） }
+            granularity: { type: string, enum: [day, week, month] }
+            period:  { $ref: '#/components/schemas/DateRange' }
+            compare: { $ref: '#/components/schemas/DateRange' }
+            kpis:
+              type: object
+              description: 7 個 KPI，key 為指標名
+              properties:
+                wager:       { $ref: '#/components/schemas/KpiCell' }
+                validWager:  { $ref: '#/components/schemas/KpiCell' }
+                ggr:         { $ref: '#/components/schemas/KpiCell' }
+                margin:      { $ref: '#/components/schemas/KpiCell' }
+                playerCount: { $ref: '#/components/schemas/KpiCell' }
+                betCount:    { $ref: '#/components/schemas/KpiCell' }
+                atppu:       { $ref: '#/components/schemas/KpiCell' }
+
+    TimeseriesResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            source:      { type: string, example: seed }
+            granularity: { type: string, enum: [day, week, month] }
+            period:      { $ref: '#/components/schemas/DateRange' }
+            metrics:
+              type: array
+              items: { type: string }
+            points:
+              type: array
+              items:
+                type: object
+                description: 每個桶一筆，bucket + 各指標值
+                properties:
+                  bucket: { type: string, description: 日期或月份 key }
+                additionalProperties: { type: number }

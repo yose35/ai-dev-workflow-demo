@@ -9,6 +9,9 @@ export type ErrorCode =
   | 'INVALID_2FA_CODE'
   | 'OAUTH_STATE_INVALID'
   | 'NOT_FOUND'
+  | 'INVALID_DATE_RANGE'
+  | 'RANGE_TOO_LARGE'
+  | 'UNKNOWN_BRAND'
   | 'INTERNAL';
 
 export class AppError extends Error {
@@ -36,4 +39,9 @@ export const errors = {
   invalid2faCode: () => new AppError('INVALID_2FA_CODE', 401, ''),
   oauthStateInvalid: (msg = 'Invalid OAuth state') => new AppError('OAUTH_STATE_INVALID', 401, msg),
   notFound: (what: string) => new AppError('NOT_FOUND', 404, `${what} not found`),
+  invalidDateRange: (msg = 'from 必須早於或等於 to') =>
+    new AppError('INVALID_DATE_RANGE', 400, msg),
+  rangeTooLarge: (maxDays: number) =>
+    new AppError('RANGE_TOO_LARGE', 400, `區間不可超過 ${maxDays} 天`),
+  unknownBrand: (brand: string) => new AppError('UNKNOWN_BRAND', 400, `未知品牌：${brand}`),
 };

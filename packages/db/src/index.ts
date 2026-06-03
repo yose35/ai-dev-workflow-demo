@@ -11,4 +11,4 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-export type { User, RefreshToken, PaymentMethod } from '@prisma/client';
+export type { User, RefreshToken, PaymentMethod, DailyBrandMetric } from '@prisma/client';

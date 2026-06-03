@@ -15,6 +15,7 @@ import { twoFaRoutes } from '../routes/auth/twoFa.js';
 import { setupIntentRoute } from '../routes/payments/setupIntent.js';
 import { paymentMethodsRoutes } from '../routes/payments/methods.js';
 import { stripeWebhookRoute } from '../routes/payments/webhook.js';
+import { metricsRoutes } from '../routes/metrics/metrics.js';
 import { loggerOptions } from '../lib/logger.js';
 import type { Env } from '../config/env.js';
 
@@ -55,6 +56,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   setupIntentRoute(app, env);
   paymentMethodsRoutes(app, env);
   stripeWebhookRoute(app, env);
+  metricsRoutes(app, env);
 
   await app.ready();
   return app;

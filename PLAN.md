@@ -17,6 +17,33 @@ Notion：[Sprint Plans → Sprint 23](https://www.notion.so/3d46c83c3cc242b2812a
 
 ## 進行中的 Ticket
 
+### `DASH-001` — 營運 KPI 儀表板（Dashboard KPI Overview）🆕
+
+- **負責人**：AI Agent（與 ethanfang 共同）
+- **Spec**：[`specs/dashboard-kpi.md`](./specs/dashboard-kpi.md)
+- **API Contract**：`packages/contract/openapi.yaml`（已新增 `Metrics` tag + 2 端點 + schema）
+- **狀態**：✅ 全端第一期完成（待 review / 開 PR）
+
+#### 已完成
+- [x] 寫 spec `specs/dashboard-kpi.md`（7 指標定義、資料模型、2 API 草稿、邊界、合規）
+- [x] 後端資料：Prisma `DailyBrandMetric` 模型 + migration（附 `down.sql`）+ seed 腳本（180 筆＝3 品牌 × 60 天）→ 已套用至 DB
+- [x] 後端 API：`GET /metrics/kpi`、`GET /metrics/timeseries`（金額存「分」bigint）+ 27 個測試
+- [x] Contract：`openapi.yaml` 補 Metrics 端點與 schema，`contract:gen` 通過
+- [x] 前端：`/dashboard` 頁 — 品牌篩選 + View by + 7 張 KPI 卡（recharts sparkline）+ Revenue Volume 4 張折線圖 + 4 個測試
+- [x] MSW handler 補 `/metrics/*`，FE 不接 BE 也能跑
+- [x] 驗證：API 82 測試綠、Web 19 測試綠、typecheck 綠、`next build` 綠、真實 Postgres 端到端 200
+
+#### 下一步
+1. 開兩個 PR：(A) 資料層+API+contract+測試；(B) 前端頁面
+2. 第二期：User Growth / User Engagement / Monetization 三個分頁 + MoM/自訂比較期
+
+#### 已知未決
+- 圖表庫：✅ 已採 `recharts`
+- 比較期第一期僅 WoW；MoM / 自訂留待第二期
+- 品牌清單先寫死 `choice/eeze/lucky`
+
+---
+
 ### `LIN-AUTH-PAY-001` — 會員登入 + 付款方式綁定
 
 - **負責人**：BE Lead（與 AI Agent 共同）
