@@ -58,9 +58,8 @@ export default function TwoFaEnrollPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-bold tracking-widest text-accent uppercase">SETTINGS</p>
-        <h1 className="text-3xl font-extrabold text-primary-900">兩階段驗證</h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <h1 className="text-2xl font-extrabold text-primary-900">兩階段驗證</h1>
+        <p className="mt-1 text-sm text-slate-600">
           使用 Authenticator app（Google Authenticator、1Password、Authy 等）保護你的帳號。
         </p>
       </header>

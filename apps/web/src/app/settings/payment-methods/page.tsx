@@ -46,11 +46,10 @@ export default function PaymentMethodsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-bold tracking-widest text-accent uppercase">SETTINGS</p>
-          <h1 className="text-3xl font-extrabold text-primary-900">付款方式</h1>
-          <p className="mt-2 text-sm text-slate-600">管理已綁定的信用卡。卡號全程由 Stripe 保管。</p>
+          <h1 className="text-2xl font-extrabold text-primary-900">付款方式</h1>
+          <p className="mt-1 text-sm text-slate-600">管理已綁定的信用卡。卡號全程由 Stripe 保管。</p>
         </div>
         <Button onClick={() => setAddOpen(true)}>+ 新增卡片</Button>
       </header>
