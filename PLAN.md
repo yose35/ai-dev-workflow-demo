@@ -139,8 +139,10 @@ FE 啟動清單：
 - `docs/adr/2026-06-01-auth-schema.md` — User / token / payment method schema *(BE Code 階段產出)*
 - `docs/adr/2026-06-01-password-hash.md` — argon2id over bcrypt *(草稿)*
 - `docs/adr/2026-06-01-refresh-token-strategy.md` — httpOnly cookie + reuse detection *(草稿)*
+- `docs/adr/2026-06-03-dashboard-charting-and-metric-storage.md` — 圖表庫選 recharts、KPI 金額以分(cent)存 bigint *(DASH-001)*
 
 Notion 同步：[ADRs DB](https://www.notion.so/a530d85879a14aa4a6b3c32bca5127ac)
+- Specs DB「營運 KPI 儀表板」、Sprint Plans「Sprint 23」、ADRs「Dashboard 圖表庫/金額儲存」皆已雙寫（DASH-001）
 
 ---
 
