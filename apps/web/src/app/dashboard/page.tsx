@@ -132,8 +132,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── KPI 卡片 ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-8">
+      {/* ── KPI 卡片（橫向捲動，spec §5.2）──────────────── */}
+      <div className="flex gap-3 mb-8 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
         {loading || !kpi
           ? METRIC_META.map((m) => <CardSkeleton key={m.key} />)
           : METRIC_META.map((m) => (
@@ -219,7 +219,7 @@ function Chip({
 
 function CardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 min-w-[180px] animate-pulse">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 w-[200px] shrink-0 animate-pulse">
       <div className="h-3 w-16 bg-slate-100 rounded mb-3" />
       <div className="h-6 w-24 bg-slate-100 rounded mb-2" />
       <div className="h-3 w-20 bg-slate-100 rounded mb-3" />

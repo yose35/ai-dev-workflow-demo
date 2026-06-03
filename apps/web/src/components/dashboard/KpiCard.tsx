@@ -24,7 +24,7 @@ export function KpiCard({ meta, cell }: { meta: MetricMeta; cell: KpiCell }) {
   const sparkData = cell.spark.map((v, i) => ({ i, v }));
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 min-w-[180px]">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 w-[200px] shrink-0 snap-start">
       <p className="text-sm text-slate-500 mb-1">{meta.label}</p>
       <div className="flex items-baseline gap-2 mb-1">
         <span className="text-2xl font-bold text-primary-900 tabular-nums">
