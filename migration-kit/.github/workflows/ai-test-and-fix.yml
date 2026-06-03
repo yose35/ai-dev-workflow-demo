@@ -1,0 +1,114 @@
+name: AI Test & Auto-Fix
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run-test.outcome }}
+      has_project: ${{ steps.detect.outputs.has_project }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect project type
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "has_project=node" >> "$GITHUB_OUTPUT"
+            echo "✅ Node project detected"
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            echo "has_project=python" >> "$GITHUB_OUTPUT"
+            echo "✅ Python project detected"
+          else
+            echo "has_project=none" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Bootstrap stage — no project files yet. Skipping tests."
+          fi
+
+      - name: Setup pnpm
+        if: steps.detect.outputs.has_project == 'node'
+        uses: pnpm/action-setup@v4
+        with: { version: 9 }
+
+      - name: Setup Node
+        if: steps.detect.outputs.has_project == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install (Node)
+        if: steps.detect.outputs.has_project == 'node'
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Lint & typecheck (Node, optional)
+        if: steps.detect.outputs.has_project == 'node'
+        run: pnpm run check --if-present || true
+
+      - name: Run tests
+        id: run-test
+        if: steps.detect.outputs.has_project == 'node'
+        run: pnpm test --reporter=json --outputFile=test-report.json
+        continue-on-error: true
+
+      - name: Upload test report
+        if: steps.detect.outputs.has_project == 'node' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: test-report.json
+          if-no-files-found: ignore
+
+      - name: Bootstrap stage notice
+        if: steps.detect.outputs.has_project == 'none'
+        run: |
+          echo "## 📦 Bootstrap stage" >> $GITHUB_STEP_SUMMARY
+          echo "尚未偵測到 package.json 或 pyproject.toml，跳過測試。" >> $GITHUB_STEP_SUMMARY
+          echo "等 BE / FE 開始實作後，此 workflow 會自動啟動。" >> $GITHUB_STEP_SUMMARY
+
+  auto-fix:
+    needs: test
+    if: ${{ needs.test.outputs.result == 'failure' && needs.test.outputs.has_project != 'none' && !contains(github.event.pull_request.labels.*.name, 'skip-auto-fix') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download test report
+        uses: actions/download-artifact@v4
+        with:
+          name: test-report
+
+      - name: Call Anthropic API for fix suggestion
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          REPORT=$(head -c 30000 test-report.json)
+          BODY=$(jq -n --arg report "$REPORT" '{
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: ("以下是失敗的測試報告，請分析並指出最可能的修正方向（不寫程式碼，只給診斷）：\n\n" + $report)
+            }]
+          }')
+
+          ANALYSIS=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$BODY" | jq -r '.content[0].text')
+
+          {
+            echo "## 🛠️ AI 測試診斷"
+            echo "$ANALYSIS"
+          } >> "$GITHUB_STEP_SUMMARY"

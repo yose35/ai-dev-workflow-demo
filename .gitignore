@@ -1,0 +1,43 @@
+# --- 相依套件 ---
+node_modules/
+.pnpm-store/
+
+# --- 環境變數 / secrets（絕不 commit） ---
+.env
+.env.*
+!.env.example
+
+# --- 編譯 / 建置產物 ---
+dist/
+build/
+out/
+*.tsbuildinfo
+coverage/
+
+# --- Next.js ---
+.next/
+next-env.d.ts
+
+# --- Turbo / Vite 快取 ---
+.turbo/
+.vite/
+
+# --- 測試報告 ---
+test-report.json
+
+# --- 日誌 ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- 作業系統雜物 ---
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# --- 編輯器 ---
+.vscode/
+.idea/
+*.swp
