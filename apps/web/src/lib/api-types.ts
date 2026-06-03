@@ -79,3 +79,52 @@ export interface ListMethodsResponse {
   ok: true;
   data: PaymentMethod[];
 }
+
+// ── Dashboard KPI（specs/dashboard-kpi.md §7）─────────────
+export type MetricKey =
+  | "wager"
+  | "validWager"
+  | "ggr"
+  | "margin"
+  | "playerCount"
+  | "betCount"
+  | "atppu";
+
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export interface KpiCell {
+  value: number;
+  compare: number;
+  changePct: number | null;
+  spark: number[];
+}
+
+export interface KpiResponse {
+  ok: true;
+  data: {
+    source: string;
+    granularity: "day" | "week" | "month";
+    period: DateRange;
+    compare: DateRange;
+    kpis: Record<MetricKey, KpiCell>;
+  };
+}
+
+export interface TimeseriesPoint {
+  bucket: string;
+  [metric: string]: string | number;
+}
+
+export interface TimeseriesResponse {
+  ok: true;
+  data: {
+    source: string;
+    granularity: "day" | "week" | "month";
+    period: DateRange;
+    metrics: MetricKey[];
+    points: TimeseriesPoint[];
+  };
+}

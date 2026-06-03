@@ -17,6 +17,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             AI Dev Workflow
           </Link>
           <nav className="flex items-center gap-5 text-sm">
+            {!isAuthPage && (
+              <NavLink href="/dashboard" current={pathname}>
+                Dashboard
+              </NavLink>
+            )}
             {user && !isAuthPage && (
               <>
                 <NavLink href="/settings/2fa/enroll" current={pathname}>

@@ -1,4 +1,4 @@
-// MSW handlers — 覆蓋 packages/contract/openapi.yaml 全部 12 端點
+// MSW handlers — 覆蓋 packages/contract/openapi.yaml 全部端點
 // 行為盡量貼近 BE 真實邏輯（含錯誤 code），讓 FE 在不接 BE 也能跑完整 happy path
 import { http, HttpResponse } from "msw";
 import type {
@@ -7,6 +7,7 @@ import type {
   PaymentMethod,
   ApiErrorBody,
 } from "@/lib/api-types";
+import { kpiData, timeseriesData } from "./metricsMock";
 
 // ── persistent store（localStorage 在瀏覽器、in-memory 在 node test）─────
 // 跨 page reload 維持狀態：避免「註冊完跳登入就帳密錯誤」這類雜訊
@@ -210,6 +211,13 @@ export const handlers = [
     return ok(card);
   }),
   http.post("/payments/webhooks/stripe", () => ok({ received: true })),
+
+  // ── Metrics（specs/dashboard-kpi.md §7）─────────────────
+  http.get("/metrics/kpi", ({ request }) => ok(kpiData(new URL(request.url)))),
+  http.get("/metrics/timeseries", ({ request }) =>
+    ok(timeseriesData(new URL(request.url)))
+  ),
+
   http.get("/payments/methods", () => ok(Array.from(methods.values()))),
   http.delete("/payments/methods/:id", ({ params }) => {
     const id = params.id as string;
