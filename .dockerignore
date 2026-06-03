@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/test-results
+**/playwright-report
+.git
+.github
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store

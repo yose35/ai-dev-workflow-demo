@@ -1,0 +1,30 @@
+{
+  "name": "ai-dev-workflow-demo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @app/api dev",
+    "dev:web": "pnpm --filter @app/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "check": "pnpm -r run check",
+    "lint": "pnpm -r lint",
+    "db:migrate": "pnpm --filter @pkg/db migrate",
+    "db:generate": "pnpm --filter @pkg/db generate",
+    "contract:gen": "pnpm --filter @app/web contract:gen",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.12.0",
+    "vitest": "^1.6.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "apps/web/public"
+    ]
+  }
+}

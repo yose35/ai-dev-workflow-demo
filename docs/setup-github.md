@@ -24,7 +24,7 @@
 
 ### 方法 B：用 gh CLI
 ```bash
-gh repo create your-org/ai-dev-workflow-demo --private --add-readme --clone
+gh repo https://github.com/yose35/ai-dev-workflow-demo.git --private --add-readme --clone
 cd ai-dev-workflow-demo
 ```
 

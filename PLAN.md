@@ -1,65 +1,161 @@
 # PLAN.md — 進行中工作（活文件）
 
-> 這是團隊與 AI 共用的「白板」。任何人或 AI 開工前更新「下一步」，做完劃掉。
-> 用 commit 一起 push，等於把開發思路存進 git history。
+> 任何人或 AI 開工前更新「下一步」，做完劃掉。每段落 commit 一起 push。
+> 與 Notion `Sprint Plans` 雙寫同步。
 
 ---
 
 ## 當前 Sprint 目標
 
-<填：本週/本 sprint 要交付什麼。例：完成登入功能 BE，可串 FE mock>
+**Sprint 23（2026-06-01 → 2026-06-14）**
+完成「登入 + 付款方式綁定」BE 端到端，並由 FE 平行使用 OpenAPI mock 啟動開發。
+驗收：登入 + 註冊 + 卡片綁定 API 可在 staging 跑通，coverage > 85%，AI Review 全綠。
+
+Notion：[Sprint Plans → Sprint 23](https://www.notion.so/3d46c83c3cc242b2812a9375b48e6435)
+
+---
 
 ## 進行中的 Ticket
 
-### `<TICKET-001>` — <ticket 標題>
+### `DASH-001` — 營運 KPI 儀表板（Dashboard KPI Overview）🆕
 
-- **負責人**：<人名 / AI>
-- **Spec 連結**：`specs/<feature>.md`
-- **狀態**：In progress
-- **API Contract**：`packages/contract/openapi.yaml` 第 N 行
+- **負責人**：AI Agent（與 ethanfang 共同）
+- **Spec**：[`specs/dashboard-kpi.md`](./specs/dashboard-kpi.md)
+- **API Contract**：`packages/contract/openapi.yaml`（已新增 `Metrics` tag + 2 端點 + schema）
+- **狀態**：✅ 全端第一期完成（待 review / 開 PR）
 
 #### 已完成
-- [x] 讀規格、確認 acceptance criteria
-- [x] 設計 DB schema（見 `docs/adr/2026-06-01-user-schema.md`）
-- [x] 寫 migration `20260601_users.sql`
+- [x] 寫 spec `specs/dashboard-kpi.md`（7 指標定義、資料模型、2 API 草稿、邊界、合規）
+- [x] 後端資料：Prisma `DailyBrandMetric` 模型 + migration（附 `down.sql`）+ seed 腳本（180 筆＝3 品牌 × 60 天）→ 已套用至 DB
+- [x] 後端 API：`GET /metrics/kpi`、`GET /metrics/timeseries`（金額存「分」bigint）+ 27 個測試
+- [x] Contract：`openapi.yaml` 補 Metrics 端點與 schema，`contract:gen` 通過
+- [x] 前端：`/dashboard` 頁 — 品牌篩選 + View by + 7 張 KPI 卡（recharts sparkline）+ Revenue Volume 4 張折線圖 + 4 個測試
+- [x] MSW handler 補 `/metrics/*`，FE 不接 BE 也能跑
+- [x] 驗證：API 82 測試綠、Web 19 測試綠、typecheck 綠、`next build` 綠、真實 Postgres 端到端 200
 
-#### 進行中
-- [ ] 實作 `POST /auth/register` handler
-- [ ] 補 unit test
-
-#### 下一步（最重要！）
-> AI 與工程師都先看這段
-1. 完成 `POST /auth/register` 與測試
-2. 接著做 `POST /auth/login`，沿用同一份 validator
-3. 第一個 PR 切點：含 register + login + 完整測試，可獨立 merge
+#### 下一步
+1. 開兩個 PR：(A) 資料層+API+contract+測試；(B) 前端頁面
+2. 第二期：User Growth / User Engagement / Monetization 三個分頁 + MoM/自訂比較期
 
 #### 已知未決
-- 密碼 hash 用 argon2id 還是 bcrypt？傾向 argon2id（見 ADR 草稿）
-- refresh token 放 httpOnly cookie 還是 localStorage？需確認 FE 端意見
+- 圖表庫：✅ 已採 `recharts`
+- 比較期第一期僅 WoW；MoM / 自訂留待第二期
+- 品牌清單先寫死 `choice/eeze/lucky`
+
+---
+
+### `LIN-AUTH-PAY-001` — 會員登入 + 付款方式綁定
+
+- **負責人**：BE Lead（與 AI Agent 共同）
+- **Spec**：[`specs/login-and-payment.md`](./specs/login-and-payment.md) ／ [Notion Specs](https://www.notion.so/372309d695ca81868a3dce2791643f1d)
+- **API Contract**：[`packages/contract/openapi.yaml`](./packages/contract/openapi.yaml)（已完成 v0.1）
+- **狀態**：In progress — BE Plan 已完成，等待 BE Code 啟動
+
+#### 已完成（BE Plan 階段）
+
+- [x] 讀 spec、確認 17 個 acceptance criteria
+- [x] 產出 OpenAPI 3.1 契約（12 端點、6 schema）
+- [x] 同步 spec 進 Notion Specs DB（雙寫驗證 ✅）
+- [x] 確認對外整合：Stripe 測試環境、Google OAuth、Twilio 暫不做（2FA 改 TOTP-only）
+
+#### 進行中
+
+> 沒有，等 BE Code 階段開工
+
+#### 下一步（BE Code 階段，依序）
+
+> 工程師 / AI 接手後依此順序推進，每完成一段就 commit。
+
+1. **建立 monorepo 骨架** `apps/api/` + `packages/contract/` + `packages/db/`
+   - 採 pnpm workspace
+   - TypeScript strict mode
+   - 預期：30 分鐘
+2. **DB schema + 第一支 migration**（`20260601_init_auth_payment.sql`）
+   - 三張表：`users`、`refresh_tokens`、`payment_methods`
+   - 對應 ADR 寫一份 `docs/adr/2026-06-01-auth-schema.md`
+   - 預期：1 小時
+3. **POST /auth/register** handler + validator + unit test
+   - 涵蓋 AC-R1..R4
+   - 預期：2 小時
+4. **POST /auth/login** + `/auth/refresh` + `/auth/logout`
+   - 涵蓋 AC-L1..L4
+   - refresh token reuse detection（被偷會撤銷整組 session）
+   - 預期：3 小時
+5. **Google OAuth `/auth/google`**
+   - state CSRF 檢查、自動建立 / 連結既有帳號
+   - 預期：2 小時
+6. **2FA enroll / verify**
+   - TOTP 用 `otplib`，constant-time 比較
+   - 涵蓋 AC-2FA-1..2
+   - 預期：2 小時
+7. **Stripe SetupIntent + webhook + payment methods CRUD**
+   - 涵蓋 AC-PAY-1..5
+   - webhook idempotency by `event.id`
+   - 預期：4 小時
+8. **整合測試**：跑完一個完整流程（register → login → 2FA → 綁卡 → 列表 → 解綁）
+   - 預期：1 小時
+
+**PR 切點建議：**
+- PR #1：步驟 1–2（骨架 + DB）
+- PR #2：步驟 3–4（auth 主流程）
+- PR #3：步驟 5（OAuth）
+- PR #4：步驟 6（2FA）
+- PR #5：步驟 7–8（Payments + 整合測試）
+
+#### 已知未決
+
+- ❓ refresh token 放 httpOnly cookie 還是回給 client 自存？**傾向 cookie**，但需 FE 確認他們能 read-only access
+- ❓ 2FA backup codes 是否本 sprint 範圍？**暫不**做，下個 ticket
+- ❓ Stripe Customer 與 User 的對應：一對一還是一對多？**一對一**，反正 demo 用
 
 #### 阻塞
-- 等 PM 確認「忘記密碼」是否本 sprint 範圍
+
+- 🔴 等 PM 確認「登入 + 付款」是否要含「忘記密碼」 → **已澄清：不在本 sprint 範圍**
+- 🔴 等 DevOps 提供測試 Postgres connection string
+
+---
+
+## FE 平行啟動
+
+> **重要：FE 不需等 BE。** OpenAPI 已備齊，可立即 mock 開發。
+
+FE 啟動清單：
+1. 跑 `pnpm contract:gen` 由 `openapi.yaml` 產 TypeScript types
+2. 用 `msw` 或 `prism` 跑 mock server，依 OpenAPI 自動產假回應
+3. 並行開發頁面：註冊、登入、Google 回呼、2FA 啟用、卡片管理
+
+預期 FE 約 6 工時可完成所有頁面 mock 串接，等 BE merge 後切到真 endpoint 即可。
 
 ---
 
 ## 已完成的 Ticket（本 sprint）
 
-- <TICKET-000> 建立 repo、配置 CI、設定 monorepo —— 2026-05-30
+- *（待 BE Code 階段完成後填入）*
 
 ---
 
-## 決策紀錄索引（最近）
+## 決策紀錄索引
 
-- `docs/adr/2026-06-01-user-schema.md` — User table 設計
-- `docs/adr/2026-05-30-monorepo-tool.md` — 為何選 pnpm workspace
+- `docs/adr/2026-06-01-auth-schema.md` — User / token / payment method schema *(BE Code 階段產出)*
+- `docs/adr/2026-06-01-password-hash.md` — argon2id over bcrypt *(草稿)*
+- `docs/adr/2026-06-01-refresh-token-strategy.md` — httpOnly cookie + reuse detection *(草稿)*
+- `docs/adr/2026-06-03-dashboard-charting-and-metric-storage.md` — 圖表庫選 recharts、KPI 金額以分(cent)存 bigint *(DASH-001)*
+
+Notion 同步：[ADRs DB](https://www.notion.so/a530d85879a14aa4a6b3c32bca5127ac)
+- Specs DB「營運 KPI 儀表板」、Sprint Plans「Sprint 23」、ADRs「Dashboard 圖表庫/金額儲存」皆已雙寫（DASH-001）
 
 ---
 
-## AI 接手清單
+## AI 接手清單（給接手 AI 看）
 
-當 AI 從 0 開始接手此檔案：
-1. 讀「當前 Sprint 目標」確認大方向
-2. 看「進行中的 Ticket → 下一步」決定要做什麼
-3. 看「已知未決」與「阻塞」避免重複踩坑
-4. 動工前更新本段為「In progress」並寫出你的子計畫
-5. 每完成一小段，把「進行中」項目劃掉並 commit
+當 AI 從這份檔案接手 BE Code 階段：
+
+1. ✅ 讀本檔的「當前 Sprint 目標」
+2. ✅ 從「下一步」第 1 項開始，**不要跳號**
+3. ✅ 動工前更新「進行中」段並標註自己（例：「by claude-bot」）
+4. ✅ 完成每一小步立即 commit + 把該項從「下一步」搬到「已完成」
+5. ✅ 任何架構選擇 → 寫一份 ADR 進 `docs/adr/`，並同步到 Notion ADRs DB
+6. ✅ 開 PR 時帶 `Closes LIN-AUTH-PAY-001`（部分 PR 可改 `Part of`）
+7. ✅ PR description 使用 `.github/PULL_REQUEST_TEMPLATE.md`
+
+**遇到取捨？** 寫在 PR description 的「給 reviewer 的提示」段，標 `@PM @TL` 並繼續推進，不要卡住。
